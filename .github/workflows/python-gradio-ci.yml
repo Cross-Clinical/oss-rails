@@ -1,0 +1,55 @@
+name: Python Gradio CI
+
+on:
+  workflow_call:
+    inputs:
+      gradio_app:
+        description: Require app.py and input_guard.py (Gradio Space repos)
+        required: false
+        type: boolean
+        default: true
+      json_paths:
+        description: Space-separated JSON files to validate
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Syntax check
+        run: python -m compileall -q .
+
+      - name: Educational rails check
+        run: |
+          test -f input_guard.py
+          test -f DISCLAIMER.md
+          if [ "${{ inputs.gradio_app }}" = "true" ]; then
+            test -f app.py
+          fi
+
+      - name: Run tests
+        run: |
+          if [ -d tests ]; then
+            python -m unittest discover -s tests -p "test_*.py" -v
+          fi
+
+      - name: Validate JSON files
+        if: inputs.json_paths != ''
+        run: |
+          for path in ${{ inputs.json_paths }}; do
+            python -c "import json; json.load(open('$path'))"
+            echo "OK $path"
+          done
